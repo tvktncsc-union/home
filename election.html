@@ -61,7 +61,7 @@
       <div id="voterVerificationForm">
         <div class="form-group">
           <label>தேர்தல் நடைபெறும் மண்டலம் / மாவட்டம் (Select Region)</label>
-          <select id="electionDistrict" class="district-dropdown"><option value="">-- Loading Regions from Sheet3... --</option></select>
+          <select id="electionDistrict" class="district-dropdown"></select>
         </div>
         <div class="form-group">
           <label>பணியாளர் எண் (Employee ID / EPF No)</label>
@@ -101,7 +101,7 @@
         <form onsubmit="addCandidate(event)">
           <div class="form-group">
             <label>Select District / Region</label>
-            <select id="candDistrict" class="district-dropdown" required><option value="">-- Select Region / District --</option></select>
+            <select id="candDistrict" class="district-dropdown" required></select>
           </div>
           <div class="form-group">
             <label>Position / Designation</label>
@@ -149,9 +149,28 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbyJERlisX5LQ1O8t0INiZhQ6K4WqGc4J8iRv_T63WnUjXO__MZ7HJnj4lwCeklKXNg/exec";
     let verifiedVoterData = null;
 
+    // Direct List of Regions
+    const REGIONS_LIST = [
+      "Head Office", "Chennai North", "Chennai South", "Ariyalur", "Chengalpattu",
+      "Coimbatore", "Cuddalore", "Dharmapuri", "Dindigul", "Erode", "Kallakurichi",
+      "Kancheepuram", "Karur", "Krishnagiri", "Madurai", "Mayiladuthurai",
+      "Nagapattinam", "Namakkal", "Nilgiris", "Perambalur", "Pudukkottai",
+      "Ramanathapuram", "Ranipet", "Salem", "Sivaganga", "Tenkasi", "Thanjavur",
+      "Theni", "Thoothukudi", "Tiruchirappalli", "Tirunelveli", "Tirupathur",
+      "Tiruppur", "Tiruvallur", "Tiruvannamalai", "Tiruvarur", "Vellore",
+      "Viluppuram", "Virudhunagar"
+    ];
+
     window.addEventListener('DOMContentLoaded', () => {
-      fetchRegionsFromSheet();
+      populateRegions();
     });
+
+    function populateRegions() {
+      const dropdowns = document.querySelectorAll('.district-dropdown');
+      const options = `<option value="">-- Select Region / District --</option>` +
+        REGIONS_LIST.map(r => `<option value="${r}">${r}</option>`).join('');
+      dropdowns.forEach(dd => dd.innerHTML = options);
+    }
 
     function switchMenu(menu) {
       document.getElementById('voter-section').style.display = menu === 'voter' ? 'block' : 'none';
@@ -159,33 +178,6 @@
       
       document.getElementById('menu-voter').classList.toggle('active', menu === 'voter');
       document.getElementById('menu-admin').classList.toggle('active', menu === 'admin');
-    }
-
-    function jsonpRequest(url, callbackName) {
-      const oldScript = document.getElementById('jsonp_' + callbackName);
-      if (oldScript) oldScript.remove();
-
-      const script = document.createElement('script');
-      script.id = 'jsonp_' + callbackName;
-      script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
-      document.body.appendChild(script);
-    }
-
-    function fetchRegionsFromSheet() {
-      const dropdowns = document.querySelectorAll('.district-dropdown');
-      dropdowns.forEach(dd => dd.innerHTML = '<option value="">-- Loading Regions from Sheet3... --</option>');
-
-      window.handleRegionsResponse = function(json) {
-        if (json.status === "SUCCESS" && json.data.length > 0) {
-          const options = `<option value="">-- Select Region / District --</option>` +
-            json.data.map(r => `<option value="${r}">${r}</option>`).join('');
-          dropdowns.forEach(dd => dd.innerHTML = options);
-        } else {
-          dropdowns.forEach(dd => dd.innerHTML = '<option value="">No regions found in Sheet3</option>');
-        }
-      };
-
-      jsonpRequest(API_URL + "?action=getRegions", "handleRegionsResponse");
     }
 
     async function verifyVoter() {
@@ -311,11 +303,14 @@
       } catch (err) { alert("வேட்பாளரைச் சேர்ப்பதில் பிழை."); }
     }
 
-    function loadElectionResults() {
+    async function loadElectionResults() {
       const tbody = document.getElementById('resultsTableBody');
       tbody.innerHTML = "<tr><td colspan='5'>Loading...</td></tr>";
 
-      window.renderResultsTable = function(json) {
+      try {
+        const res = await fetch(`${API_URL}?action=getResults`);
+        const json = await res.json();
+
         if (json.status === "SUCCESS" && json.data.length > 0) {
           tbody.innerHTML = json.data.map(r => `
             <tr>
@@ -329,9 +324,7 @@
         } else {
           tbody.innerHTML = "<tr><td colspan='5'>No candidate records found.</td></tr>";
         }
-      };
-
-      jsonpRequest(API_URL + "?action=getResults", "renderResultsTable");
+      } catch (e) { tbody.innerHTML = "<tr><td colspan='5'>Error loading results.</td></tr>"; }
     }
   </script>
 </body>
