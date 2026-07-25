@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TVKTNCSC Union - Election Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta+Malar:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0f172a;
+      --brand: #1e40af;
+      --accent: #d97706;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --bg: #f1f5f9;
+      --border: #e2e8f0;
+    }
+
+    body { font-family: 'Mukta Malar', sans-serif; background: var(--bg); margin: 0; padding: 0; }
+    header { background: var(--primary); color: white; padding: 1rem; text-align: center; }
+    nav { display: flex; justify-content: center; gap: 1rem; background: #1e293b; padding: 0.5rem; }
+    nav button { background: transparent; color: white; border: 1px solid #475569; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: inherit; }
+    nav button.active { background: var(--brand); border-color: var(--brand); }
+
+    .main-container { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+    h2 { color: var(--brand); border-bottom: 2px solid var(--bg); padding-bottom: 0.5rem; margin-top: 0; }
+    
+    .form-group { margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; }
+    label { font-weight: bold; font-size: 0.9rem; }
+    input, select { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; font-size: 0.95rem; }
+    
+    .btn { background: var(--brand); color: white; border: none; padding: 0.85rem; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem; }
+    .btn:hover { background: #1e3a8a; }
+    
+    .candidate-card { border: 1px solid var(--border); padding: 1rem; border-radius: 6px; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid var(--border); padding: 0.75rem; text-align: left; font-size: 0.9rem; }
+    th { background: #f8fafc; color: var(--primary); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 style="margin:0; font-size:1.4rem;">த.வெ.க தமிழ்நாடு நுகர்பொருள் வாணிபக் கழக பணியாளர்கள் சங்கம்</h1>
+    <p style="margin:0.2rem 0 0 0; font-size:0.85rem; color:#cbd5e1;">District Union Election Portal / மண்டல நிர்வாகிகள் தேர்தல்</p>
+  </header>
+
+  <nav>
+    <button id="menu-voter" class="active" onclick="switchMenu('voter')">🗳️ Voter Portal / வாக்காளர் பகுதி</button>
+    <button id="menu-admin" onclick="switchMenu('admin')">⚙️ HO Admin Election Management</button>
+  </nav>
+
+  <div class="main-container">
+
+    <!-- MENU 1: VOTER PORTAL -->
+    <div id="voter-section" class="card">
+      <h2>🗳️ வாக்காளர் சரிபார்ப்பு & ரகசிய வாக்குப்பதிவு</h2>
+
+      <div id="voterVerificationForm">
+        <div class="form-group">
+          <label>தேர்தல் நடைபெறும் மண்டலம் / மாவட்டம் (Select Region)</label>
+          <select id="electionDistrict" class="district-dropdown"><option value="">-- Loading Regions from Sheet3... --</option></select>
+        </div>
+        <div class="form-group">
+          <label>பணியாளர் எண் (Employee ID / EPF No)</label>
+          <input type="text" id="voterEmpId" placeholder="Enter Emp ID (e.g. 950817)">
+        </div>
+        <div class="form-group">
+          <label>பதிவுசெய்த கைபேசி எண் (Registered Phone)</label>
+          <input type="tel" id="voterPhone" placeholder="10 Digit Mobile No">
+        </div>
+        <button class="btn" onclick="verifyVoter()">வாக்காளர் சரிபார்ப்பு (Verify Voter)</button>
+      </div>
+
+      <div id="votingBallot" style="display:none;">
+        <h3 id="welcomeVoter" style="color:var(--success);"></h3>
+        <p style="color:#64748b; font-size:0.9rem;">உங்கள் வேட்பாளரைத் தேர்ந்தெடுத்து வாக்கைப்பதிவு செய்யவும்:</p>
+        <div id="candidatesListContainer"></div>
+        <button class="btn" style="background:var(--success); margin-top:1rem;" onclick="submitSecretVote()">வாக்கைப் பதிவு செய் (Submit Secret Vote)</button>
+      </div>
+    </div>
+
+    <!-- MENU 2: HO ADMIN PORTAL -->
+    <div id="admin-section" class="card" style="display:none;">
+      <div id="adminLoginForm">
+        <h2>🔒 HO Admin Login</h2>
+        <div class="form-group"><label>Username</label><input type="text" id="adminUser"></div>
+        <div class="form-group"><label>Password</label><input type="password" id="adminPass"></div>
+        <button class="btn" style="background:var(--danger);" onclick="handleAdminLogin()">Login to Election Admin</button>
+      </div>
+
+      <div id="adminDashboard" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--bg); padding-bottom:0.5rem; margin-bottom:1rem;">
+          <h2 style="margin:0;">⚙️ Candidate Setup & Live Results</h2>
+          <button style="background:var(--danger); color:white; border:none; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer;" onclick="adminLogout()">Logout</button>
+        </div>
+
+        <h3 style="color:var(--brand); margin-top:0;">1. Create Candidate Entry</h3>
+        <form onsubmit="addCandidate(event)">
+          <div class="form-group">
+            <label>Select District / Region</label>
+            <select id="candDistrict" class="district-dropdown" required><option value="">-- Select Region / District --</option></select>
+          </div>
+          <div class="form-group">
+            <label>Position / Designation</label>
+            <select id="candPosition" required>
+              <option value="District President">District President / மாவட்டத் தலைவர்</option>
+              <option value="District Secretary">District Secretary / மாவட்டச் செயலாளர்</option>
+              <option value="District Treasurer">District Treasurer / மாவட்டப் பொருளாளர்</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Candidate Name</label>
+            <input type="text" id="candName" required placeholder="Enter Full Name">
+          </div>
+          <div class="form-group">
+            <label>Candidate Number / ID</label>
+            <input type="text" id="candNumber" required placeholder="e.g. CAND-101">
+          </div>
+          <button type="submit" class="btn">Add Candidate</button>
+        </form>
+
+        <h3 style="color:var(--brand); margin-top:2rem;">2. Live Vote Count & Results</h3>
+        <button class="btn" style="background:#334155; margin-bottom:1rem;" onclick="loadElectionResults()">Refresh Results</button>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>District</th>
+                <th>Position</th>
+                <th>Cand No</th>
+                <th>Candidate Name</th>
+                <th>Votes Received</th>
+              </tr>
+            </thead>
+            <tbody id="resultsTableBody">
+              <tr><td colspan="5">Click refresh to load results...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyJERlisX5LQ1O8t0INiZhQ6K4WqGc4J8iRv_T63WnUjXO__MZ7HJnj4lwCeklKXNg/exec";
+    let verifiedVoterData = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchRegionsFromSheet();
+    });
+
+    function switchMenu(menu) {
+      document.getElementById('voter-section').style.display = menu === 'voter' ? 'block' : 'none';
+      document.getElementById('admin-section').style.display = menu === 'admin' ? 'block' : 'none';
+      
+      document.getElementById('menu-voter').classList.toggle('active', menu === 'voter');
+      document.getElementById('menu-admin').classList.toggle('active', menu === 'admin');
+    }
+
+    function jsonpRequest(url, callbackName) {
+      const oldScript = document.getElementById('jsonp_' + callbackName);
+      if (oldScript) oldScript.remove();
+
+      const script = document.createElement('script');
+      script.id = 'jsonp_' + callbackName;
+      script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+      document.body.appendChild(script);
+    }
+
+    function fetchRegionsFromSheet() {
+      const dropdowns = document.querySelectorAll('.district-dropdown');
+      dropdowns.forEach(dd => dd.innerHTML = '<option value="">-- Loading Regions from Sheet3... --</option>');
+
+      window.handleRegionsResponse = function(json) {
+        if (json.status === "SUCCESS" && json.data.length > 0) {
+          const options = `<option value="">-- Select Region / District --</option>` +
+            json.data.map(r => `<option value="${r}">${r}</option>`).join('');
+          dropdowns.forEach(dd => dd.innerHTML = options);
+        } else {
+          dropdowns.forEach(dd => dd.innerHTML = '<option value="">No regions found in Sheet3</option>');
+        }
+      };
+
+      jsonpRequest(API_URL + "?action=getRegions", "handleRegionsResponse");
+    }
+
+    async function verifyVoter() {
+      const empId = document.getElementById('voterEmpId').value.trim();
+      const phone = document.getElementById('voterPhone').value.trim();
+      const targetDistrict = document.getElementById('electionDistrict').value;
+
+      if (!targetDistrict) return alert("மண்டலத்தைத் தேர்ந்தெடுக்கவும்.");
+      if (!empId || !phone) return alert("விவரங்களை நிரப்பவும்.");
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "VERIFY_VOTER", empId, phone, targetDistrict })
+        });
+
+        const json = await res.json();
+        if (json.status === "SUCCESS") {
+          verifiedVoterData = { empId, targetDistrict };
+          document.getElementById('voterVerificationForm').style.display = 'none';
+          document.getElementById('welcomeVoter').innerText = `வணக்கம் ${json.voterName}! (${targetDistrict} மண்டலம்)`;
+          renderCandidatesBallot(json.candidates);
+          document.getElementById('votingBallot').style.display = 'block';
+        } else {
+          alert("❌ " + json.message);
+        }
+      } catch (e) { alert("இணைப்புப் பிழை: மீண்டும் முயற்சிக்கவும்."); }
+    }
+
+    function renderCandidatesBallot(candidates) {
+      const container = document.getElementById('candidatesListContainer');
+      if (candidates.length === 0) {
+        container.innerHTML = "<p style='color:red;'>இந்த மண்டலத்திற்கு வேட்பாளர்கள் சேர்க்கப்படவில்லை.</p>";
+        return;
+      }
+
+      const grouped = {};
+      candidates.forEach(c => {
+        if (!grouped[c.position]) grouped[c.position] = [];
+        grouped[c.position].push(c);
+      });
+
+      let html = "";
+      for (let pos in grouped) {
+        html += `<h4 style="color:var(--brand); margin-top:15px; margin-bottom:5px;">${pos}</h4>`;
+        grouped[pos].forEach(cand => {
+          html += `
+            <div class="candidate-card">
+              <div><strong>[${cand.id}] ${cand.name}</strong></div>
+              <input type="radio" name="pos_${pos}" value="${cand.id}">
+            </div>`;
+        });
+      }
+      container.innerHTML = html;
+    }
+
+    async function submitSecretVote() {
+      const radios = document.querySelectorAll('input[type="radio"]:checked');
+      if (radios.length === 0) return alert("வேட்பாளரைத் தேர்ந்தெடுக்கவும்.");
+
+      const selections = [];
+      radios.forEach(r => selections.push({ position: r.name.replace('pos_', ''), candidateId: r.value }));
+
+      if (!confirm("உங்கள் வாக்கை உறுதி செய்ய விரும்புகிறீர்களா?")) return;
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            action: "CAST_VOTE",
+            empId: verifiedVoterData.empId,
+            targetDistrict: verifiedVoterData.targetDistrict,
+            selections
+          })
+        });
+
+        const json = await res.json();
+        if (json.status === "SUCCESS") {
+          alert("✅ " + json.message);
+          location.reload();
+        } else { alert("❌ " + json.message); }
+      } catch (e) { alert("வாக்குப்பதிவில் பிழை ஏற்பட்டது."); }
+    }
+
+    function handleAdminLogin() {
+      const u = document.getElementById('adminUser').value.trim();
+      const p = document.getElementById('adminPass').value.trim();
+
+      if (u === "MANI" && p === "950817") {
+        document.getElementById('adminLoginForm').style.display = 'none';
+        document.getElementById('adminDashboard').style.display = 'block';
+        loadElectionResults();
+      } else { alert("❌ Invalid Credentials!"); }
+    }
+
+    function adminLogout() {
+      document.getElementById('adminLoginForm').style.display = 'block';
+      document.getElementById('adminDashboard').style.display = 'none';
+    }
+
+    async function addCandidate(e) {
+      e.preventDefault();
+      const district = document.getElementById('candDistrict').value;
+      const position = document.getElementById('candPosition').value;
+      const candName = document.getElementById('candName').value.trim();
+      const candNumber = document.getElementById('candNumber').value.trim();
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "ADD_CANDIDATE", district, position, candName, candNumber })
+        });
+
+        const json = await res.json();
+        if (json.status === "SUCCESS") {
+          alert("✅ வேட்பாளர் சேர்க்கப்பட்டார்!");
+          e.target.reset();
+          loadElectionResults();
+        }
+      } catch (err) { alert("வேட்பாளரைச் சேர்ப்பதில் பிழை."); }
+    }
+
+    function loadElectionResults() {
+      const tbody = document.getElementById('resultsTableBody');
+      tbody.innerHTML = "<tr><td colspan='5'>Loading...</td></tr>";
+
+      window.renderResultsTable = function(json) {
+        if (json.status === "SUCCESS" && json.data.length > 0) {
+          tbody.innerHTML = json.data.map(r => `
+            <tr>
+              <td><strong>${r.district}</strong></td>
+              <td>${r.position}</td>
+              <td>${r.candId}</td>
+              <td><strong>${r.candidateName}</strong></td>
+              <td style="color:green; font-weight:bold;">${r.votesReceived} Votes</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = "<tr><td colspan='5'>No candidate records found.</td></tr>";
+        }
+      };
+
+      jsonpRequest(API_URL + "?action=getResults", "renderResultsTable");
+    }
+  </script>
+</body>
+</html>
