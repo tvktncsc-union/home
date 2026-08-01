@@ -392,13 +392,57 @@
 
     <!-- 6. CIRCULARS -->
     <div id="tab-circulars" class="card" style="display:none;">
-      <div class="section-header"><h2>📢 Circulars & Orders</h2></div>
+      <div class="section-header">
+        <h2>📢 Circulars & Orders / சுற்றறிக்கைகள்</h2>
+      </div>
+
+      <!-- CIRCULAR SEARCH BAR -->
+      <div class="form-group" style="max-width:500px; margin-bottom:1.5rem;">
+        <label for="circularSearchInput">🔎 Search Circulars (தலைப்பு அல்லது விவரம் மூலம் தேடுக):</label>
+        <input type="text" id="circularSearchInput" placeholder="Enter keyword (e.g. Transfer, DA, Leave, 2026...)" onkeyup="filterCirculars()">
+      </div>
+
       <div id="circularsContainer">Loading...</div>
     </div>
 
     <!-- 7. GALLERY -->
     <div id="tab-gallery" class="card" style="display:none;">
-      <div class="section-header"><h2>🖼️ Activity Gallery</h2></div>
+      <div class="section-header">
+        <h2>🖼️ Activity Gallery / புகைப்படத் தொகுப்பு</h2>
+      </div>
+
+      <!-- GALLERY FILTER CONTROLS -->
+      <div style="background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1.5rem;">
+        <h4 style="margin: 0 0 1rem 0; color: var(--brand);">🔎 Filter Gallery Photos:</h4>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          
+          <!-- District Filter -->
+          <div class="form-group">
+            <label for="galleryDistrictSelect">Filter District:</label>
+            <select id="galleryDistrictSelect" onchange="filterGallery()"></select>
+          </div>
+
+          <!-- From Date -->
+          <div class="form-group">
+            <label for="galleryFromDate">From Date:</label>
+            <input type="date" id="galleryFromDate" onchange="filterGallery()">
+          </div>
+
+          <!-- To Date -->
+          <div class="form-group">
+            <label for="galleryToDate">To Date:</label>
+            <input type="date" id="galleryToDate" onchange="filterGallery()">
+          </div>
+
+          <!-- Reset Button -->
+          <div class="form-group" style="justify-content: flex-end;">
+            <label>&nbsp;</label>
+            <button type="button" class="btn-submit" style="margin:0; background: var(--muted);" onclick="resetGalleryFilters()">Reset Filters</button>
+          </div>
+
+        </div>
+      </div>
+
       <div id="galleryContainer" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:1rem;">Loading...</div>
     </div>
 
@@ -1329,27 +1373,70 @@
     }
 
     // FETCH CIRCULARS
+ let rawCircularsData = []; // சுற்றறிக்கை தரவுகளைச் சேமிக்க Global Variable
+
+    // FETCH CIRCULARS FROM GOOGLE SHEET
     async function fetchCirculars() {
       const container = document.getElementById('circularsContainer');
+      const searchInput = document.getElementById('circularSearchInput');
+      if (searchInput) searchInput.value = ""; // Search Box-ஐ ரீசெட் செய்ய
+
       try {
         const res = await fetch(`${API_URL}?action=getCirculars`);
         const json = await res.json();
+        
         if (json.data && json.data.length > 0) {
-          container.innerHTML = json.data.map(c => `
-            <div style="border:1px solid var(--border); padding:1rem; border-radius:8px; margin-bottom:1rem; background:#fff;">
-              <small style="color:var(--muted);">${c.date ? new Date(c.date).toLocaleDateString() : ''}</small>
-              <h3 style="margin:0.25rem 0; color:var(--brand);">${c.title}</h3>
-              <p style="margin-bottom:0.75rem;">${c.subject}</p>
-              ${c.url ? `<a href="${c.url}" target="_blank" style="color:var(--brand); font-weight:bold;">📄 View / Download Circular PDF</a>` : ''}
-            </div>
-          `).join('');
+          rawCircularsData = json.data; // அசல் தரவைச் சேமிக்கிறோம்
+          renderCircularsList(rawCircularsData); // பட்டியலைக் காண்பிக்கிறோம்
         } else {
           container.innerHTML = "<p>சுற்றறிக்கைகள் ஏதும் பதிவேற்றம் செய்யப்படவில்லை.</p>";
         }
-      } catch (e) { container.innerHTML = "<p>Unable to load circulars.</p>"; }
+      } catch (e) { 
+        container.innerHTML = "<p>Unable to load circulars. Please check internet connection.</p>"; 
+      }
     }
 
-    // FETCH GALLERY
+    // RENDER CIRCULARS LIST
+    function renderCircularsList(list) {
+      const container = document.getElementById('circularsContainer');
+      
+      if (list.length === 0) {
+        container.innerHTML = "<p style='color:var(--danger); font-weight:bold;'>நீங்கள் தேடிய வார்த்தைக்குரிய சுற்றறிக்கைகள் ஏதும் கிடைக்கவில்லை (No matching circulars found).</p>";
+        return;
+      }
+
+      container.innerHTML = list.map(c => `
+        <div style="border:1px solid var(--border); padding:1rem; border-radius:8px; margin-bottom:1rem; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+          <small style="color:var(--muted); font-weight:600;">📅 ${c.date ? new Date(c.date).toLocaleDateString() : ''}</small>
+          <h3 style="margin:0.25rem 0; color:var(--brand); font-size:1.1rem;">${c.title}</h3>
+          <p style="margin-bottom:0.75rem; color:var(--text);">${c.subject}</p>
+          ${c.url ? `<a href="${c.url}" target="_blank" style="color:var(--brand); font-weight:bold; text-decoration:underline;">📄 View / Download Circular PDF</a>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // SEARCH / FILTER CIRCULARS BY KEYWORD
+    function filterCirculars() {
+      const query = document.getElementById('circularSearchInput').value.toLowerCase().trim();
+      
+      if (!query) {
+        renderCircularsList(rawCircularsData); // தேடல் சொல் இல்லையெனில் அனைத்துச் சுற்றறிக்கைகளையும் காட்டும்
+        return;
+      }
+
+      // Title அல்லது Subject-இல் தேடல் சொல் பொருந்துகிறதா எனச் சரிபார்க்கிறது
+      const filtered = rawCircularsData.filter(c => {
+        const titleMatch = c.title ? c.title.toLowerCase().includes(query) : false;
+        const subjectMatch = c.subject ? c.subject.toLowerCase().includes(query) : false;
+        return titleMatch || subjectMatch;
+      });
+
+      renderCircularsList(filtered);
+    }
+
+let rawGalleryData = []; // Gallery தரவுகளைச் சேமிக்க Global Variable
+
+    // FETCH GALLERY DATA FROM GOOGLE SHEET
     async function fetchGallery() {
       const container = document.getElementById('galleryContainer');
       try {
@@ -1357,32 +1444,92 @@
         const json = await res.json();
         
         if (json.data && json.data.length > 0) {
-          container.innerHTML = json.data.map(g => {
-            let imgUrl = g.url;
-            let fileIdMatch = imgUrl ? imgUrl.match(/[-\w]{25,}/) : null;
-            
-            if (fileIdMatch) {
-              imgUrl = `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`;
-            }
-
-            return `
-              <div style="border:1px solid var(--border); padding:0.75rem; border-radius:8px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-                <img src="${imgUrl}" 
-                     style="width:100%; height:200px; object-fit:cover; border-radius:6px;" 
-                     alt="${g.district}"
-                     onerror="this.onerror=null; this.src='https://lh3.google.com/u/0/d/${fileIdMatch ? fileIdMatch[0] : ''}';">
-                <div style="margin-top:0.5rem; font-weight:bold; color:var(--brand);">${g.district}</div>
-                <p style="font-size:0.9rem; margin:0.25rem 0; color:var(--text);">${g.remarks}</p>
-                <small style="color:var(--muted);">${g.date ? new Date(g.date).toLocaleDateString() : ''}</small>
-              </div>
-            `;
-          }).join('');
+          rawGalleryData = json.data; // அசல் தரவைச் சேமிக்கிறோம்
+          populateGalleryDistrictDropdown(); // மாவட்ட பட்டியலை நிரப்புகிறது
+          filterGallery(); // வடிகட்டிப் பட்டியலைக் காண்பிக்கிறது
         } else { 
           container.innerHTML = "<p>புகைப்படங்கள் ஏதும் பதிவேற்றம் செய்யப்படவில்லை.</p>"; 
         }
       } catch (e) { 
         container.innerHTML = "<p>Unable to load gallery.</p>"; 
       }
+    }
+
+    // POPULATE GALLERY DISTRICT DROPDOWN
+    function populateGalleryDistrictDropdown() {
+      const select = document.getElementById('galleryDistrictSelect');
+      if (!select) return;
+      select.innerHTML = `<option value="ALL">-- All Districts --</option>` +
+        DISTRICTS.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    // RENDER GALLERY ITEMS
+    function renderGalleryList(list) {
+      const container = document.getElementById('galleryContainer');
+      
+      if (list.length === 0) {
+        container.innerHTML = "<p style='color:var(--danger); font-weight:bold; grid-column: 1/-1;'>நீங்கள் தேர்வு செய்த மாவட்டம் அல்லது தேதி வரம்பிற்குள் புகைப்படங்கள் ஏதும் கிடைக்கவில்லை (No gallery photos found for selected filter).</p>";
+        return;
+      }
+
+      container.innerHTML = list.map(g => {
+        let imgUrl = g.url;
+        let fileIdMatch = imgUrl ? imgUrl.match(/[-\w]{25,}/) : null;
+        
+        if (fileIdMatch) {
+          imgUrl = `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`;
+        }
+
+        return `
+          <div style="border:1px solid var(--border); padding:0.75rem; border-radius:8px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+            <img src="${imgUrl}" 
+                 style="width:100%; height:200px; object-fit:cover; border-radius:6px;" 
+                 alt="${g.district}"
+                 onerror="this.onerror=null; this.src='https://lh3.google.com/u/0/d/${fileIdMatch ? fileIdMatch[0] : ''}';">
+            <div style="margin-top:0.5rem; font-weight:bold; color:var(--brand);">${g.district}</div>
+            <p style="font-size:0.9rem; margin:0.25rem 0; color:var(--text);">${g.remarks}</p>
+            <small style="color:var(--muted);">📅 ${g.date ? new Date(g.date).toLocaleDateString() : ''}</small>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // FILTER GALLERY BY DISTRICT AND DATE RANGE
+    function filterGallery() {
+      const distSelect = document.getElementById('galleryDistrictSelect').value;
+      const fromDateVal = document.getElementById('galleryFromDate').value;
+      const toDateVal = document.getElementById('galleryToDate').value;
+
+      let filtered = rawGalleryData;
+
+      // 1. District Filter
+      if (distSelect && distSelect !== "ALL") {
+        filtered = filtered.filter(g => g.district === distSelect);
+      }
+
+      // 2. From Date Filter
+      if (fromDateVal) {
+        const fromDate = new Date(fromDateVal);
+        fromDate.setHours(0, 0, 0, 0); // நாளினுடைய தொடக்க நேரம்
+        filtered = filtered.filter(g => g.date && new Date(g.date) >= fromDate);
+      }
+
+      // 3. To Date Filter
+      if (toDateVal) {
+        const toDate = new Date(toDateVal);
+        toDate.setHours(23, 59, 59, 999); // நாளினுடைய முடிவு நேரம்
+        filtered = filtered.filter(g => g.date && new Date(g.date) <= toDate);
+      }
+
+      renderGalleryList(filtered);
+    }
+
+    // RESET FILTERS
+    function resetGalleryFilters() {
+      document.getElementById('galleryDistrictSelect').value = "ALL";
+      document.getElementById('galleryFromDate').value = "";
+      document.getElementById('galleryToDate').value = "";
+      filterGallery();
     }
   </script>
 </body>
